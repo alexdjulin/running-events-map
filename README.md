@@ -7,8 +7,6 @@
 
 *Click picture to display full map*
 
-[run_map](readme/run_map.jpg?raw=true "Run Map")
-
 The map is displayed on my [running blog](https://run.alexdjulin.ovh/p/events.html). It is mainly using the [Folium](https://python-visualization.github.io/folium/) python library. The base layer relies on [OpenStreetMap](https://www.openstreetmap.org/).
 
 All events are loaded from a [google spreadsheet](https://docs.google.com/spreadsheets/d/1FXP3QcYiCeogYNgArd5mPY109RgAOhP6FKQDWqgV4YU/edit#gid=1032862300). This is the only part that I edit: html map, events table and the event-o-meter gadget are generated automatically from it.
