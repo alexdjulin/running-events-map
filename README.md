@@ -1,7 +1,13 @@
 # Run Map
 #### A map of race events I took part in, with gpx traces and pop-up race information, entirely generated from a google spreadsheet.
 
-<iframe src="https://alexdjulin.ovh/run/run_map/run_map.html" height="450" width="590" style="border:none;" title="My run_map"></iframe>
+<p align="left">
+  <a href="https://alexdjulin.ovh/run/run_map/run_map.html" target="_blank"><img src="readme/run_map.jpg" width="600" title="See Map"></a>
+</p>
+
+*Click picture to display full map*
+
+[run_map](readme/run_map.jpg?raw=true "Run Map")
 
 The map is displayed on my [running blog](https://run.alexdjulin.ovh/p/events.html). It is mainly using the [Folium](https://python-visualization.github.io/folium/) python library. The base layer relies on [OpenStreetMap](https://www.openstreetmap.org/).
 
