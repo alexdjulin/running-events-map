@@ -1,0 +1,30 @@
+{
+    "sheet_id": "1FXP3QcYiCeogYNgArd5mPY109RgAOhP6FKQDWqgV4YU",
+    "tab_id": "1032862300",
+    "events_csv": "csv/events.csv",
+    "run_map_html": "html/run_map.html",
+    "events_table_template": "html/events_table_template.html",
+    "events_table_html": "html/events_table.html",
+    "events_table_css": "html/events_table.css",
+    "eventometer_template": "html/eventometer_template.html",
+    "eventometer_html": "html/eventometer.html",
+    "popup_contents_html": "html/popup_contents.html",
+    "jpg_web_prefix": "https://alexdjulin.ovh/run/run_map/jpg/",
+    "jpg_folder": "jpg",
+    "gpx_folder": "gpx",
+    "pic_default": "default.jpg",
+    "popup_width": 520,
+    "popup_height": 360,
+    "zoom_start": 5,
+    "gpx_weight": 5,
+    "gpx_opacity": 0.85,
+    "gpx_step": 200,
+    "map_colors": {
+        "10k": "purple",
+        "half": "darkblue",
+        "marathon": "red",
+        "ultra": "black",
+        "misc": "green"
+        },
+    "blog_event_page": "https://run.alexdjulin.ovh/p/events.html"
+}
