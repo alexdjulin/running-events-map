@@ -43,7 +43,7 @@ class RunMap:
             self.zoom_start = spreadsheet_json['zoom_start']
             self.gpx_weight = spreadsheet_json['gpx_weight']
             self.gpx_opacity = spreadsheet_json['gpx_opacity']
-            self.gpx_step = spreadsheet_json['gpx_step']
+            self.gpx_smoothness = spreadsheet_json['gpx_smoothness']
             self.map_colors = spreadsheet_json['map_colors']
             self.blog_event_page = spreadsheet_json['blog_event_page']
 
@@ -344,16 +344,11 @@ class RunMap:
         track = gpx.tracks[0]
         segment = track.segments[0]
 
-        # store points with slicing step to avoid using too much data
-        data = []
-        for point in segment.points[::self.gpx_step]:
-            data.append([point.longitude, point.latitude])
-
         # Make points tuple for lines
         points = []
         for track in gpx.tracks:
             for segment in track.segments:
-                for point in segment.points:
+                for point in segment.points[::self.gpx_smoothness]:
                     points.append(tuple([point.latitude, point.longitude]))
 
         return points
