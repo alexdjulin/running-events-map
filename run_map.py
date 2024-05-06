@@ -3,11 +3,12 @@ import json
 import folium
 import calendar
 import gpxpy
-import keyring
 import pandas as pd
 import webbrowser
 from statistics import mean
 from ftplib import FTP
+from dotenv import load_dotenv
+load_dotenv()
 
 CURRENT_FOLDER = os.path.dirname(os.path.abspath(__file__))
 
@@ -65,7 +66,7 @@ class RunMap:
 
         print('\n' + ' DOWNLOAD SPREADSHEET AS CSV FILE '.center(100, '#'))
 
-        command = f'curl -L "https://docs.google.com/spreadsheets/d/{self.sheet_id}/export?exportFormat=csv&gid={self.tab_id}" -o {self.events_csv}'
+        command = f'curl -L "https://docs.google.com/spreadsheets/d/{self.sheet_id}/export?exportFormat=csv" -o {self.events_csv}'
         os.system(command)
 
         if not os.path.isfile(self.events_csv):
@@ -356,10 +357,10 @@ class RunMap:
     def upload_to_ftp(self, html=True, jpg=True, gpx=True):
         """Uploads map and files to ftp server"""
 
-        ftp_address = 'ftp.cluster031.hosting.ovh.net'
-        ftp_user = 'alexdjl'
-        ftp_pwd = keyring.get_password(ftp_address, ftp_user)
-        ftp_start_dir = 'www/run/run_map'
+        ftp_address = os.getenv('FTP_ADDRESS')
+        ftp_user = os.getenv('FTP_USER')
+        ftp_pwd = os.getenv('FTP_PWD')
+        ftp_start_dir = os.getenv('FTP_START_DIR')
 
         ftp = FTP(ftp_address)
         ftp.login(user=ftp_user, passwd=ftp_pwd, acct='')
