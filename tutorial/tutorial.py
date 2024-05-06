@@ -1,7 +1,7 @@
 ### GET DATA FROM SPREADSHEET ###
 # download google doc as a csv file
 import os
-sheet_url = 'https://docs.google.com/spreadsheets/d/1WghWJbxdCeKpbi3-H_6FmBAv_jILD_1_woRhuKGJ190/export?exportFormat=csv'
+sheet_url = 'https://docs.google.com/spreadsheets/d/1_yonZkHkeVzWXRvvxvmwGOxnbOGCzel9uX9MEFeAdeE/export?exportFormat=csv'
 current_folder = os.path.dirname(os.path.abspath(__file__))
 csv_filepath = os.path.join(current_folder, 'run_events.csv')
 command = f'curl -L {sheet_url} -o {csv_filepath}'
