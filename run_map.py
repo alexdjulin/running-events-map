@@ -1,5 +1,6 @@
 import os
 import json
+import sqlite3
 import folium
 import calendar
 import gpxpy
@@ -11,6 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 CURRENT_FOLDER = os.path.dirname(os.path.abspath(__file__))
+DATABASE_PATH = os.path.join(CURRENT_FOLDER, "run_map.db")
 
 
 class RunMap:
@@ -64,16 +66,19 @@ class RunMap:
     def download_spreadsheet_as_csv(self):
         """Download google spreadsheet as csv file"""
 
-        print('\n' + ' DOWNLOAD SPREADSHEET AS CSV FILE '.center(100, '#'))
-
         command = f'curl -L "https://docs.google.com/spreadsheets/d/{self.sheet_id}/export?exportFormat=csv" -o {self.events_csv}'
         os.system(command)
 
         if not os.path.isfile(self.events_csv):
             print(f'Error downloading the spreadsheet at location {self.events_csv}')
 
-    def read_csv_file(self):
+    def load_csv_file(self):
         """Extracts and formats data from the csv file"""
+
+        print('\n' + ' DOWNLOAD AND READ SPREADSHEET '.center(100, '#'))
+
+        # download and update csv file
+        self.download_spreadsheet_as_csv()
 
         # extract race infos into a panda dataframe
         data = pd.read_csv(self.events_csv).fillna('')
@@ -124,13 +129,137 @@ class RunMap:
             path = os.path.join(CURRENT_FOLDER, self.gpx_folder, gpx_file) if gpx_file else ''
             self.gpx_files.append(path)
 
+    def update_database(self, rebuild=False):
+        """Update database with new data"""
+
+        print('\n' + ' UPDATE DATABASE '.center(100, '#'))
+
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+
+        # drop table to rebuild a brand new one
+        if rebuild:
+            cursor.execute("DROP TABLE IF EXISTS run_map")
+
+        # create database if not available
+        cursor.execute("""CREATE TABLE IF NOT EXISTS run_map(
+                       id INTEGER PRIMARY KEY,
+                       date TEXT,
+                       race TEXT,
+                       loc TEXT,
+                       lt REAL,
+                       ln REAL,
+                       type TEXT,
+                       dist REAL,
+                       dplus INT,
+                       time TEXT,
+                       notes TEXT,
+                       link TEXT,
+                       post TEXT,
+                       jpg TEXT,
+                       gpx TEXT,
+                       UNIQUE(date, race, loc, lt, ln, type, dist, dplus, time, notes, link, post, jpg, gpx)
+                       )
+        """)
+
+        # delete from database any entry not in the csv file
+        cursor.execute("SELECT date FROM run_map")
+        dates_in_db = [row[0] for row in cursor.fetchall()]
+
+        for date in dates_in_db:
+            if date not in self.date_list:
+                # entry has been deleted from csv file, remove it from db too
+                cursor.execute("DELETE FROM run_map WHERE date=?", (date,))
+                print(f"Deleting from database entry with date {date}: Not in CSV file.")
+
+        # iterate through database, add or update entries
+        data_iter = zip(self.date_list, self.race_list, self.loc_list, self.lat_list, self.lon_list,
+                        self.type_list, self.distF_list, self.dplus_list, self.time_list, self.notes_list,
+                        self.link_list, self.post_list, self.jpg_links, self.gpx_files)
+
+        for date, race, loc, lt, ln, typ, dist, dplus, time, notes, link, post, jpg, gpx in data_iter:
+            cursor.execute("SELECT * FROM run_map WHERE date=?", (date,))
+            row = cursor.fetchone()
+
+            # entry already exists -> update it if any change
+            if row:
+                # unpack row values for comparison
+                _, _, race_db, loc_db, lt_db, ln_db, typ_db, dist_db, dplus_db, time_db, notes_db, link_db, post_db, jpg_db, gpx_db = row
+
+                # check for a change in the row values
+                if (race != race_db or loc != loc_db or lt != lt_db or ln != ln_db or typ != typ_db or
+                    dist != dist_db or dplus != dplus_db or time != time_db or notes != notes_db or
+                    link != link_db or post != post_db or jpg != jpg_db or gpx != gpx_db):
+
+                    # update the row
+                    cursor.execute("""UPDATE run_map
+                                   SET race=?, loc=?, lt=?, ln=?, type=?, dist=?, dplus=?, time=?, notes=?, link=?, post=?, jpg=?, gpx=?
+                                   WHERE date=?
+                                   """, (race, loc, lt, ln, typ, dist, dplus, time, notes, link, post, jpg, gpx, date))
+
+                    print(f"Updating to database entry with date {date}: different values in CSV file.")
+
+            # new entry -> add it
+            else:
+                cursor.execute("""INSERT INTO run_map
+                               (date, race, loc, lt, ln, type, dist, dplus, time, notes, link, post, jpg, gpx) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                               """, (date, race, loc, lt, ln, typ, dist, dplus, time, notes, link, post, jpg, gpx))
+
+                print(f"Adding to database entry with date {date}: New entry.")
+
+        # commit and close
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        print("Database updated successfully.")
+        self.check_dabase()
+
+    def check_dabase(self):
+        """Check the database properties"""
+
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+
+        # database rows
+        cursor.execute("SELECT COUNT(*) FROM run_map")
+        rows = cursor.fetchone()[0]
+
+        # database colums
+        cursor.execute("PRAGMA table_info(run_map)")
+        columns = cursor.fetchall()
+
+        print(f"Path: {DATABASE_PATH}")
+        print(f"Rows: {rows}")
+        print(f"Columns: {len(columns)}")
+
+        cursor.close()
+        conn.close()
+
+    def search_database(self, sql_query):
+        """Search the database"""
+
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+
+        # print sql query results
+        results = cursor.execute(sql_query)
+
+        if results:
+            for result in results:
+                print(50 * '-')
+                for element in result:
+                    print(element)
+        else:
+            print('SQL request returned no result.')
+
+        cursor.close()
+        conn.close()
+
     def generate_map(self):
         """Generates the map as a html file"""
 
         print('\n' + ' GENERATING HTML MAP '.center(100, '#'))
-
-        # read csv file
-        self.read_csv_file()
 
         # center map based on race locations
         start_lat = mean([min(self.lat_list), max(self.lat_list)])
@@ -139,10 +268,10 @@ class RunMap:
         # create map object
         self.run_map = folium.Map(location=[start_lat, start_lon], tiles=None, zoom_start=self.zoom_start)
 
-        folium.TileLayer('openstreetmap', name='OpenStreet Map').add_to(self.run_map)
         folium.TileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
                          attr='Tiles &copy; Esri &mdash; National Geographic, Esri, DeLorme, NAVTEQ, UNEP-WCMC, USGS, NASA,'
                          'ESA, METI, NRCAN, GEBCO, NOAA, iPC', name='Nat Geo Map').add_to(self.run_map)
+        folium.TileLayer('openstreetmap', name='OpenStreet Map').add_to(self.run_map)
 
         # create feature groups and add them to the map
         legend_txt = '<span style="color: {col};">{txt}</span>'
@@ -174,10 +303,10 @@ class RunMap:
             elif 21 <= dist <= 22:
                 race_color = self.map_colors['half']
                 self.halfs_count += 1
-            elif 42 <= dist <= 43:
+            elif 42 <= dist < 50:
                 race_color = self.map_colors['marathon']
                 self.marathons_count += 1
-            elif dist > 43:
+            elif dist >= 50:
                 race_color = self.map_colors['ultra']
                 self.ultras_count += 1
             else:

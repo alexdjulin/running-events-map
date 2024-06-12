@@ -28,6 +28,7 @@ ENV/
 # Logs and databases
 *.log
 *.sqlite3
+*.db
 
 # OS-specific files
 .DS_Store
