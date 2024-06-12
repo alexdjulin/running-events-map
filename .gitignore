@@ -34,3 +34,13 @@ ENV/
 .DS_Store
 Thumbs.db
 
+# untracked folders
+csv/
+jpg/
+gpx/
+misc/
+
+# files generated at runtime
+eventometer.html
+events_table.html
+run_map.html
