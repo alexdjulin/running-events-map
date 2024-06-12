@@ -66,6 +66,8 @@ class RunMap:
     def download_spreadsheet_as_csv(self):
         """Download google spreadsheet as csv file"""
 
+        os.makedirs(os.path.dirname(self.events_csv), exist_ok=True)
+
         command = f'curl -L "https://docs.google.com/spreadsheets/d/{self.sheet_id}/export?exportFormat=csv" -o {self.events_csv}'
         os.system(command)
 
