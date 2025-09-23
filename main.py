@@ -9,9 +9,10 @@ if __name__ == '__main__':
     run_map.generate_events_table()
     run_map.generate_eventometer()
     run_map.save_map()
-    run_map.upload_to_ftp(html=True, jpg=True, gpx=True)
-    run_map.open_blog_page()
+    ftp_success = run_map.upload_to_ftp(html=True, jpg=True, gpx=True, force=False)
+    
+    if ftp_success:
+        run_map.open_blog_page()
+    else:
+        print("Skipping blog page opening due to FTP upload failure.")
 
-    # Search database
-    sql_query = "SELECT date, race, dist FROM run_map WHERE dist >= 50"
-    results = run_map.search_database(sql_query)

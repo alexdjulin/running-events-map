@@ -9,6 +9,7 @@ import webbrowser
 from statistics import mean
 from ftplib import FTP
 from dotenv import load_dotenv
+from collections import OrderedDict
 load_dotenv()
 
 CURRENT_FOLDER = os.path.dirname(os.path.abspath(__file__))
@@ -47,7 +48,6 @@ class RunMap:
             self.gpx_weight = spreadsheet_json['gpx_weight']
             self.gpx_opacity = spreadsheet_json['gpx_opacity']
             self.gpx_smoothness = spreadsheet_json['gpx_smoothness']
-            self.map_colors = spreadsheet_json['map_colors']
             self.blog_event_page = spreadsheet_json['blog_event_page']
 
             print('Json settings loaded successfully')
@@ -98,6 +98,7 @@ class RunMap:
         self.time_list = list(data['Time'])
         self.link_list = list(data['Link'])
         self.post_list = list(data['Post'])
+        self.color_list = list(data['Color'])
 
         # format date as 'Day FullMonthName Year'
         self.dateF_list = []
@@ -275,20 +276,34 @@ class RunMap:
                          'ESA, METI, NRCAN, GEBCO, NOAA, iPC', name='Nat Geo Map').add_to(self.run_map)
         folium.TileLayer('openstreetmap', name='OpenStreet Map').add_to(self.run_map)
 
-        # create feature groups and add them to the map
+        # create feature groups based on unique colors from spreadsheet
         legend_txt = '<span style="color: {col};">{txt}</span>'
-        fg_misc = folium.FeatureGroup(name=legend_txt.format(txt='Misc', col=self.map_colors['misc'])).add_to(self.run_map)
-        fg_10k = folium.FeatureGroup(name=legend_txt.format(txt='10k', col=self.map_colors['10k'])).add_to(self.run_map)
-        fg_half = folium.FeatureGroup(name=legend_txt.format(txt='Halfs', col=self.map_colors['half'])).add_to(self.run_map)
-        fg_marathon = folium.FeatureGroup(name=legend_txt.format(txt='Marathons', col=self.map_colors['marathon'])).add_to(self.run_map)
-        fg_ultra = folium.FeatureGroup(name=legend_txt.format(txt='Ultras', col=self.map_colors['ultra'])).add_to(self.run_map)
-
+        unique_colors = list(set(self.color_list))
+        feature_groups = OrderedDict()
+        
+        # Define the desired order for feature groups
+        group_order = ['Shorts', 'Halfs', 'Marathons', 'Ultras']
+        
+        # Create feature groups in the specified order
+        for group_name in group_order:
+            for color in unique_colors:
+                if color:  # Skip empty colors
+                    # Create a meaningful group name based on color
+                    if 'purple' in color and group_name == 'Shorts':
+                        feature_groups[color] = folium.FeatureGroup(name=legend_txt.format(txt=group_name, col=color)).add_to(self.run_map)
+                    elif 'blue' in color and group_name == 'Halfs':
+                        feature_groups[color] = folium.FeatureGroup(name=legend_txt.format(txt=group_name, col=color)).add_to(self.run_map)
+                    elif 'red' in color and group_name == 'Marathons':
+                        feature_groups[color] = folium.FeatureGroup(name=legend_txt.format(txt=group_name, col=color)).add_to(self.run_map)
+                    elif ('green' in color or 'black' in color) and group_name == 'Ultras':
+                        feature_groups[color] = folium.FeatureGroup(name=legend_txt.format(txt=group_name, col=color)).add_to(self.run_map)
+        
         # add markers based on csv file data
         data_iter = zip(self.dateF_list, self.race_list, self.loc_list, self.lat_list, self.lon_list,
                         self.type_list, self.distF_list, self.dplus_list, self.timeF_list, self.notes_list,
-                        self.link_list, self.post_list, self.jpg_links, self.gpx_files)
+                        self.link_list, self.post_list, self.jpg_links, self.gpx_files, self.color_list)
 
-        for date, race, loc, lt, ln, typ, dist, dplus, time, notes, link, post, jpg, gpx in data_iter:
+        for date, race, loc, lt, ln, typ, dist, dplus, time, notes, link, post, jpg, gpx, color in data_iter:
 
             print(f'Loading {race}')
 
@@ -297,22 +312,17 @@ class RunMap:
             if dplus:
                 self.dplus_count += dplus
 
-            # define race_color icon and title based on the distance
+            # use color directly from spreadsheet
             str_dist = str(dist)
+            race_color = color if color else 'blue'  # default color if none specified
 
-            if dist == 10:
-                race_color = self.map_colors['10k']
-            elif 21 <= dist <= 22:
-                race_color = self.map_colors['half']
+            # count race categories based on distance
+            if 21 <= dist <= 22:
                 self.halfs_count += 1
-            elif 42 <= dist < 50:
-                race_color = self.map_colors['marathon']
+            elif 42 <= dist < 45:
                 self.marathons_count += 1
-            elif dist >= 50:
-                race_color = self.map_colors['ultra']
+            elif dist >= 45:
                 self.ultras_count += 1
-            else:
-                race_color = self.map_colors['misc']
 
             # delete the blog post line if link not in csv file
             if not str(post).lower().startswith('http'):
@@ -346,27 +356,16 @@ class RunMap:
                 folium_gpx = folium.PolyLine(points, color=race_color, weight=self.gpx_weight,
                                              opacity=self.gpx_opacity).add_to(self.run_map)
 
-            # add markers and gpx traces to Feature Groups
-            if dist == 10:
-                folium_marker.add_to(fg_10k)
+            # add markers and gpx traces to Feature Groups based on color
+            if color and color in feature_groups:
+                folium_marker.add_to(feature_groups[color])
                 if folium_gpx:
-                    folium_gpx.add_to(fg_10k)
-            elif 21 <= dist <= 22:
-                folium_marker.add_to(fg_half)
-                if folium_gpx:
-                    folium_gpx.add_to(fg_half)
-            elif 42 <= dist <= 43:
-                folium_marker.add_to(fg_marathon)
-                if folium_gpx:
-                    folium_gpx.add_to(fg_marathon)
-            elif dist > 43:
-                folium_marker.add_to(fg_ultra)
-                if folium_gpx:
-                    folium_gpx.add_to(fg_ultra)
+                    folium_gpx.add_to(feature_groups[color])
             else:
-                folium_marker.add_to(fg_misc)
+                # Add to map directly if no color or color not in feature groups
+                folium_marker.add_to(self.run_map)
                 if folium_gpx:
-                    folium_gpx.add_to(fg_misc)
+                    folium_gpx.add_to(self.run_map)
 
         # add layer control (legend), each feature group will be a different category
         self.run_map.add_child(folium.LayerControl(position='topright', collapsed=True, autoZIndex=True))
@@ -441,7 +440,7 @@ class RunMap:
         with open(self.eventometer_template, 'r') as input_file:
             html_contents = input_file.read()
             html_contents = html_contents.replace('<!--dist-->', str(int(self.dist_count)))
-            html_contents = html_contents.replace('<!--dplus-->', str(round(self.dplus_count / 1000, 2)).replace('.', ','))
+            html_contents = html_contents.replace('<!--dplus-->', str(round(self.dplus_count / 1000, 1)).replace('.', ','))
             html_contents = html_contents.replace('<!--H-->', str(self.halfs_count))
             html_contents = html_contents.replace('<!--M-->', str(self.marathons_count))
             html_contents = html_contents.replace('<!--U-->', str(self.ultras_count))
@@ -485,62 +484,159 @@ class RunMap:
 
         return points
 
-    def upload_to_ftp(self, html=True, jpg=True, gpx=True):
-        """Uploads map and files to ftp server"""
+    def upload_to_ftp(self, html=True, jpg=True, gpx=True, force=False):
+        """Uploads map and files to ftp server
+        
+        Args:
+            html (bool): Upload HTML files
+            jpg (bool): Upload JPG files
+            gpx (bool): Upload GPX files
+            force (bool): Force upload all files, even if they exist on server
+        """
 
         ftp_address = os.getenv('FTP_ADDRESS')
         ftp_user = os.getenv('FTP_USER')
         ftp_pwd = os.getenv('FTP_PWD')
         ftp_start_dir = os.getenv('FTP_START_DIR')
 
-        ftp = FTP(ftp_address)
-        ftp.login(user=ftp_user, passwd=ftp_pwd, acct='')
-        ftp.cwd(ftp_start_dir)
+        # Check if all required environment variables are set
+        if not all([ftp_address, ftp_user, ftp_pwd, ftp_start_dir]):
+            print("❌ Error: Missing FTP environment variables in .env file")
+            print("Required variables: FTP_ADDRESS, FTP_USER, FTP_PWD, FTP_START_DIR")
+            return False
+
+        try:
+            print(f"🔄 Connecting to FTP server: {ftp_address}")
+            ftp = FTP(ftp_address)
+            
+            print("🔄 Logging in...")
+            ftp.login(user=ftp_user, passwd=ftp_pwd, acct='')
+            
+            print(f"🔄 Changing to directory: {ftp_start_dir}")
+            ftp.cwd(ftp_start_dir)
+            print("✅ FTP connection successful!")
+            
+        except Exception as e:
+            print(f"❌ FTP connection failed: {str(e)}")
+            print("💡 Please check your .env file and FTP credentials.")
+            print("💡 Make sure the FTP_START_DIR directory exists on the server.")
+            return False
+
+        def get_ftp_file_list(directory='.'):
+            """Get list of files in FTP directory"""
+            files = []
+            try:
+                ftp.cwd(directory)
+                ftp.retrlines('NLST', files.append)
+            except Exception as e:
+                print(f"Warning: Could not list files in {directory}: {e}")
+            return files
+
+        def file_needs_upload(filename, ftp_files, force_upload=False):
+            """Check if file needs to be uploaded"""
+            if force_upload:
+                return True
+            return filename not in ftp_files
 
         if html:
-            print('\n' + ' TRANSFERING HTML MAP '.center(100, '#'))
+            print('\n' + ' TRANSFERING HTML FILES '.center(100, '#'))
+            
+            # Get list of files in root directory
+            ftp_files = get_ftp_file_list('.')
+            
+            # Upload run_map.html (always upload HTML/CSS files)
             with open(self.run_map_html, 'rb') as file:
                 ftp.storbinary('STOR run_map.html', file)
             print('run_map.html transfered')
 
-            print('\n' + ' TRANSFERING HTML EVENTS TABLE '.center(100, '#'))
+            # Upload events_table.html (always upload HTML/CSS files)
             with open(self.events_table_html, 'rb') as file:
                 ftp.storbinary('STOR events_table.html', file)
             print('events_table.html transfered')
+                
+            # Upload events_table.css (always upload HTML/CSS files)
             with open(self.events_table_css, 'rb') as file:
                 ftp.storbinary('STOR events_table.css', file)
             print('events_table.css transfered')
 
-            print('\n' + ' TRANSFERING HTML EVENT-O-METER '.center(100, '#'))
+            # Upload eventometer.html (always upload HTML/CSS files)
             with open(self.eventometer_html, 'rb') as file:
                 ftp.storbinary('STOR eventometer.html', file)
             print('eventometer.html transfered')
 
         # transfer jpg files
         if jpg:
-            ftp.cwd('jpg')
-            jpg_folder = os.path.join(CURRENT_FOLDER, 'jpg')
-
             print('\n' + ' TRANSFERING JPG FILES '.center(100, '#'))
-            for jpg in os.listdir(jpg_folder):
-                pic_path = os.path.join(jpg_folder, jpg)
-                with open(pic_path, 'rb') as file:
-                    ftp.storbinary('STOR {}'.format(jpg), file)
-                    print('{} transfered'.format(jpg))
+            try:
+                ftp.cwd('jpg')
+                ftp_jpg_files = get_ftp_file_list('.')
+                jpg_folder = os.path.join(CURRENT_FOLDER, 'jpg')
+
+                if os.path.exists(jpg_folder):
+                    local_jpg_files = os.listdir(jpg_folder)
+                    uploaded_count = 0
+                    skipped_count = 0
+                    
+                    for jpg_file in local_jpg_files:
+                        if file_needs_upload(jpg_file, ftp_jpg_files, force):
+                            pic_path = os.path.join(jpg_folder, jpg_file)
+                            with open(pic_path, 'rb') as file:
+                                ftp.storbinary('STOR {}'.format(jpg_file), file)
+                            print('{} transfered'.format(jpg_file))
+                            uploaded_count += 1
+                        else:
+                            skipped_count += 1
+                    
+                    print(f'JPG transfer complete: {uploaded_count} uploaded, {skipped_count} skipped')
+                else:
+                    print(f'JPG folder {jpg_folder} does not exist')
+                    
+                # Return to start directory
+                ftp.cwd(ftp_start_dir)
+            except Exception as e:
+                print(f'Error accessing JPG directory: {e}')
+                ftp.cwd(ftp_start_dir)
 
         # transfer gpx files
         if gpx:
-            ftp.cwd('../gpx')
-            gpx_folder = os.path.join(CURRENT_FOLDER, 'gpx')
-
             print('\n' + ' TRANSFERING GPX FILES '.center(100, '#'))
-            for gpx in os.listdir(gpx_folder):
-                gpx_path = os.path.join(gpx_folder, gpx)
-                with open(gpx_path, 'rb') as file:
-                    ftp.storbinary('STOR {}'.format(gpx), file)
-                    print('{} transfered'.format(gpx))
+            try:
+                ftp.cwd('gpx')
+                ftp_gpx_files = get_ftp_file_list('.')
+                gpx_folder = os.path.join(CURRENT_FOLDER, 'gpx')
 
-        ftp.quit()
+                if os.path.exists(gpx_folder):
+                    local_gpx_files = os.listdir(gpx_folder)
+                    uploaded_count = 0
+                    skipped_count = 0
+                    
+                    for gpx_file in local_gpx_files:
+                        if file_needs_upload(gpx_file, ftp_gpx_files, force):
+                            gpx_path = os.path.join(gpx_folder, gpx_file)
+                            with open(gpx_path, 'rb') as file:
+                                ftp.storbinary('STOR {}'.format(gpx_file), file)
+                            print('{} transfered'.format(gpx_file))
+                            uploaded_count += 1
+                        else:
+                            skipped_count += 1
+                    
+                    print(f'GPX transfer complete: {uploaded_count} uploaded, {skipped_count} skipped')
+                else:
+                    print(f'GPX folder {gpx_folder} does not exist')
+                    
+                # Return to start directory
+                ftp.cwd(ftp_start_dir)
+            except Exception as e:
+                print(f'Error accessing GPX directory: {e}')
+                ftp.cwd(ftp_start_dir)
+
+        try:
+            ftp.quit()
+            print("✅ FTP upload completed successfully!")
+            return True
+        except Exception as e:
+            print(f"Warning: Error closing FTP connection: {e}")
+            return True
 
     def open_blog_page(self):
         """Opens the map on the blog web page"""

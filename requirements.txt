@@ -1,0 +1,5 @@
+folium
+gpxpy
+pandas
+python-dotenv
+tcx2gpx

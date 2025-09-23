@@ -19,12 +19,5 @@
     "gpx_weight": 5,
     "gpx_opacity": 0.85,
     "gpx_smoothness": 5,
-    "map_colors": {
-        "10k": "purple",
-        "half": "darkblue",
-        "marathon": "red",
-        "ultra": "black",
-        "misc": "green"
-        },
     "blog_event_page": "https://run.alexdjulin.ovh/p/events.html"
 }

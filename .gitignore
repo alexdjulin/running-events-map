@@ -39,6 +39,7 @@ csv/
 jpg/
 gpx/
 misc/
+tcx/
 
 # files generated at runtime
 eventometer.html
