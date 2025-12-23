@@ -289,13 +289,13 @@ class RunMap:
             for color in unique_colors:
                 if color:  # Skip empty colors
                     # Create a meaningful group name based on color
-                    if 'purple' in color and group_name == 'Shorts':
+                    if 'grey' in color and group_name == 'Shorts':
                         feature_groups[color] = folium.FeatureGroup(name=legend_txt.format(txt=group_name, col=color)).add_to(self.run_map)
                     elif 'blue' in color and group_name == 'Halfs':
                         feature_groups[color] = folium.FeatureGroup(name=legend_txt.format(txt=group_name, col=color)).add_to(self.run_map)
                     elif 'red' in color and group_name == 'Marathons':
                         feature_groups[color] = folium.FeatureGroup(name=legend_txt.format(txt=group_name, col=color)).add_to(self.run_map)
-                    elif ('green' in color or 'black' in color) and group_name == 'Ultras':
+                    elif ('green' in color or 'black' in color or 'purple' in color) and group_name == 'Ultras':
                         feature_groups[color] = folium.FeatureGroup(name=legend_txt.format(txt=group_name, col=color)).add_to(self.run_map)
         
         # add markers based on csv file data
