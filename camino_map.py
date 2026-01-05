@@ -30,18 +30,24 @@ class CaminoMap:
 
             self.sheet_id = spreadsheet_json['sheet_id']
             self.tab_id = spreadsheet_json['tab_id']
+            self.stamps_tab_id = spreadsheet_json['stamps_tab_id']
             self.events_csv = os.path.join(CURRENT_FOLDER, spreadsheet_json['events_csv'])
+            self.stamps_csv = os.path.join(CURRENT_FOLDER, spreadsheet_json['stamps_csv'])
             self.camino_map_html = os.path.join(CURRENT_FOLDER, spreadsheet_json['camino_map_html'])
             self.table_template = os.path.join(CURRENT_FOLDER, spreadsheet_json['table_template'])
             self.table_html = os.path.join(CURRENT_FOLDER, spreadsheet_json['table_html'])
             self.table_css = os.path.join(CURRENT_FOLDER, spreadsheet_json['table_css'])
             self.popup_contents_html = os.path.join(CURRENT_FOLDER, spreadsheet_json['popup_contents_html'])
+            self.stamp_popup_contents_html = os.path.join(CURRENT_FOLDER, spreadsheet_json['stamp_popup_contents_html'])
             self.jpg_web_prefix = spreadsheet_json['jpg_web_prefix']
             self.jpg_folder = os.path.join(CURRENT_FOLDER, spreadsheet_json['jpg_folder'])
             self.gpx_folder = os.path.join(CURRENT_FOLDER, spreadsheet_json['gpx_folder'])
             self.pic_default = spreadsheet_json['pic_default']
+            self.stamp_pic_default = spreadsheet_json['stamp_pic_default']
             self.popup_width = spreadsheet_json['popup_width']
             self.popup_height = spreadsheet_json['popup_height']
+            self.stamp_popup_width = spreadsheet_json['stamp_popup_width']
+            self.stamp_popup_height = spreadsheet_json['stamp_popup_height']
             self.zoom_start = spreadsheet_json['zoom_start']
             self.gpx_weight = spreadsheet_json['gpx_weight']
             self.gpx_opacity = spreadsheet_json['gpx_opacity']
@@ -55,10 +61,15 @@ class CaminoMap:
         with open(self.popup_contents_html) as f:
             self.html_popup = f.read()
 
+        # load stamp popup contents
+        with open(self.stamp_popup_contents_html) as f:
+            self.stamp_html_popup = f.read()
+
         # define counters for stats
         self.dist_count = 0
         self.dplus_count = 0
         self.stages_count = 0
+        self.stamps_count = 0
 
     def download_spreadsheet_as_csv(self):
         """Download google spreadsheet as csv file"""
@@ -70,6 +81,17 @@ class CaminoMap:
 
         if not os.path.isfile(self.events_csv):
             print(f'Error downloading the spreadsheet at location {self.events_csv}')
+
+    def download_stamps_as_csv(self):
+        """Download stamps spreadsheet as csv file"""
+
+        os.makedirs(os.path.dirname(self.stamps_csv), exist_ok=True)
+
+        command = f'curl -L "https://docs.google.com/spreadsheets/d/{self.sheet_id}/export?exportFormat=csv&gid={self.stamps_tab_id}" -o {self.stamps_csv}'
+        os.system(command)
+
+        if not os.path.isfile(self.stamps_csv):
+            print(f'Error downloading the stamps spreadsheet at location {self.stamps_csv}')
 
     def load_csv_file(self):
         """Extracts and formats data from the csv file"""
@@ -134,6 +156,42 @@ class CaminoMap:
         for gpx_file in data['Gpx']:
             path = os.path.join(self.gpx_folder, gpx_file) if gpx_file else ''
             self.gpx_files.append(path)
+
+    def load_stamps_csv(self):
+        """Extracts and formats data from the stamps csv file"""
+
+        print('\n' + ' DOWNLOAD AND READ STAMPS SPREADSHEET '.center(100, '#'))
+
+        # download and update stamps csv file
+        self.download_stamps_as_csv()
+
+        # extract stamps infos into a panda dataframe
+        data = pd.read_csv(self.stamps_csv).fillna('')
+
+        # store information into lists
+        self.stamp_date_list = list(data['Date'])
+        self.stamp_place_list = list(data['Place'])
+        self.stamp_location_list = list(data['Location'])
+        self.stamp_camino_list = list(data['Camino'])
+        self.stamp_lat_list = list(data['Lat'])
+        self.stamp_lon_list = list(data['Lon'])
+        self.stamp_note_list = list(data['Note'])
+        self.stamp_link_list = list(data['Link'])
+
+        # format date as 'Day FullMonthName Year'
+        self.stamp_dateF_list = []
+        for date in self.stamp_date_list:
+            date = [int(d) for d in date.split('.')]
+            date = f'{date[0]} {calendar.month_name[date[1]]} {date[2]}'
+            self.stamp_dateF_list.append(date)
+
+        # list of jpg web links for stamps
+        self.stamp_jpg_links = []
+        for jpg in data['Jpg']:
+            if jpg:
+                self.stamp_jpg_links.append(f'{self.jpg_web_prefix}{jpg}')
+            else:
+                self.stamp_jpg_links.append(f'{self.jpg_web_prefix}{self.stamp_pic_default}')
 
     def update_database(self, rebuild=False):
         """Update database with new data"""
@@ -272,9 +330,9 @@ class CaminoMap:
 
         print('\n' + ' GENERATING HTML MAP '.center(100, '#'))
 
-        # center map based on all location coordinates (start and end points)
-        all_lats = self.start_lat_list + self.end_lat_list
-        all_lons = self.start_lon_list + self.end_lon_list
+        # center map based on all location coordinates (start, end points and stamps)
+        all_lats = self.start_lat_list + self.end_lat_list + self.stamp_lat_list
+        all_lons = self.start_lon_list + self.end_lon_list + self.stamp_lon_list
         # Filter out empty values
         all_lats = [lat for lat in all_lats if lat]
         all_lons = [lon for lon in all_lons if lon]
@@ -304,6 +362,13 @@ class CaminoMap:
         folium.TileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
                          attr='Tiles &copy; Esri &mdash; National Geographic, Esri, DeLorme, NAVTEQ, UNEP-WCMC, USGS, NASA,'
                          'ESA, METI, NRCAN, GEBCO, NOAA, iPC', name='Nat Geo Map').add_to(self.camino_map)
+        folium.TileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+                         attr='Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)',
+                         name='OpenTopoMap').add_to(self.camino_map)
+        folium.TileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                         attr='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+                         name='Satellite').add_to(self.camino_map)
+        folium.TileLayer('cartodbpositron', name='CartoDB Positron').add_to(self.camino_map)
         folium.TileLayer('openstreetmap', name='OpenStreet Map').add_to(self.camino_map)
 
         # create feature groups based on unique Camino routes
@@ -412,6 +477,51 @@ class CaminoMap:
                 folium_marker.add_to(self.camino_map)
                 if folium_gpx:
                     folium_gpx.add_to(self.camino_map)
+
+        # Create a feature group for stamps
+        legend_txt = '<span style="color: {col};">{txt}</span>'
+        stamps_feature_group = folium.FeatureGroup(name=legend_txt.format(txt='Stamps', col='black')).add_to(self.camino_map)
+
+        # Add stamp markers
+        stamp_data_iter = zip(self.stamp_dateF_list, self.stamp_place_list, self.stamp_location_list,
+                              self.stamp_camino_list, self.stamp_lat_list, self.stamp_lon_list,
+                              self.stamp_note_list, self.stamp_link_list, self.stamp_jpg_links)
+
+        for date, place, location, camino, lat, lon, note, link, jpg in stamp_data_iter:
+            print(f'Loading stamp: {place}')
+
+            # count stamps
+            self.stamps_count += 1
+
+            # create the iFrame popup for stamp marker
+            iframe = folium.IFrame(
+                width=self.stamp_popup_width, height=self.stamp_popup_height,
+                html=self.stamp_html_popup.format(
+                    place=place, date=date, location=location, camino=camino,
+                    note=note, link=link, pic=jpg
+                )
+            )
+
+            # create custom stamp icon using the stamp.png image
+            stamp_icon_url = f'{self.jpg_web_prefix}stamp.png'
+            stamp_icon = folium.CustomIcon(
+                icon_image=stamp_icon_url,
+                icon_size=(32, 32),
+                icon_anchor=(16, 16),
+                popup_anchor=(0, -16)
+            )
+
+            # add stamp marker with custom stamp icon
+            stamp_marker = folium.Marker(
+                location=[lat, lon],
+                tooltip=place,
+                popup=folium.Popup(iframe),
+                icon=stamp_icon
+            )
+
+            stamp_marker.add_to(stamps_feature_group)
+
+        print(f'Total stamps loaded: {self.stamps_count}')
 
         # add layer control (legend), each feature group will be a different Camino route
         self.camino_map.add_child(folium.LayerControl(position='topright', collapsed=True, autoZIndex=True))

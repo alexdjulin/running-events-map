@@ -129,7 +129,7 @@ class RunMap:
         # list of gpx file paths
         self.gpx_files = []
         for gpx_file in data['Gpx']:
-            path = os.path.join(self.gpx_folder, gpx_file) if gpx_file else ''
+            path = os.path.join(CURRENT_FOLDER, self.gpx_folder, gpx_file) if gpx_file else ''
             self.gpx_files.append(path)
 
     def update_database(self, rebuild=False):
@@ -570,7 +570,7 @@ class RunMap:
             try:
                 ftp.cwd('jpg')
                 ftp_jpg_files = get_ftp_file_list('.')
-                jpg_folder = self.jpg_folder
+                jpg_folder = os.path.join(CURRENT_FOLDER, 'jpg')
 
                 if os.path.exists(jpg_folder):
                     local_jpg_files = os.listdir(jpg_folder)
@@ -603,7 +603,7 @@ class RunMap:
             try:
                 ftp.cwd('gpx')
                 ftp_gpx_files = get_ftp_file_list('.')
-                gpx_folder = self.gpx_folder
+                gpx_folder = os.path.join(CURRENT_FOLDER, 'gpx')
 
                 if os.path.exists(gpx_folder):
                     local_gpx_files = os.listdir(gpx_folder)

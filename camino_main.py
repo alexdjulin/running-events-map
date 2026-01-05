@@ -4,6 +4,7 @@ if __name__ == '__main__':
 
     camino_map = CaminoMap()
     camino_map.load_csv_file()
+    camino_map.load_stamps_csv()
     camino_map.update_database()
     camino_map.generate_map()
     camino_map.generate_table()
