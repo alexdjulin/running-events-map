@@ -274,6 +274,13 @@ class RunMap:
         folium.TileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
                          attr='Tiles &copy; Esri &mdash; National Geographic, Esri, DeLorme, NAVTEQ, UNEP-WCMC, USGS, NASA,'
                          'ESA, METI, NRCAN, GEBCO, NOAA, iPC', name='Nat Geo Map').add_to(self.run_map)
+        folium.TileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+                         attr='Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)',
+                         name='OpenTopoMap').add_to(self.run_map)
+        folium.TileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                         attr='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+                         name='Satellite').add_to(self.run_map)
+        folium.TileLayer('cartodbpositron', name='CartoDB Positron').add_to(self.run_map)
         folium.TileLayer('openstreetmap', name='OpenStreet Map').add_to(self.run_map)
 
         # create feature groups based on unique colors from spreadsheet
